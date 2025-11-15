@@ -484,7 +484,7 @@
 
         // AI Feature Functions
         async function callGemini(prompt) {
-             const apiKey = ""; // This will be handled by the environment.
+             const apiKey = "AIzaSyDeF-mDuBCNiuMS-O_QMGPmvdIFjWUk9io"; // This will be handled by the environment.
              const FULL_API_URL = API_URL + apiKey;
 
              const payload = {
@@ -639,31 +639,17 @@
 
             let noteHTML = '';
             for (const q of incorrectQuestions) {
-                const prompt = `
-너는 중학교 3학년 수학 문제 출제 전문가야.
-아래 '원본 문제'와 동일한 개념과 유형을 사용하되, 숫자나 상황을 바꿔서 새로운 유사 문제 1개를 만들어줘.
+                const prompt = `다음 중학교 3학년 수학 문제와 동일한 개념과 유형을 사용하지만, 숫자나 상황을 바꿔서 객관식 유사 문제를 1개만 만들어줘. 
+                - 반드시 4개의 선택지를 포함해야 해.
+                - 정답을 명확하게 알려줘야 해.
+                - 중요: LaTeX 수식을 포함할 때, JSON 형식에서 유효하도록 모든 백슬래시 \`\\\`를 이중 백슬래시 \`\\\\\\\`로 이스케이프 처리해주세요. 예를 들어, "$\\sqrt{4}$"는 "$\\\\\\\sqrt{4}$"로 작성해야 합니다.
+                - 결과는 반드시 다음 JSON 형식으로 반환해줘: {"question": "새로운 문제 내용", "options": ["선택지1", "선택지2", "선택지3", "선택지4"], "answer": "정답 내용"}
+                - 다른 설명은 절대 추가하지 말고 JSON 데이터만 반환해줘.
 
----
-### 원본 문제 정보
-* **문제:** ${q.question}
-* **핵심 개념:** ${q.concept}
-* **유형:** ${q.type}
----
-
-### 생성할 문제 요구사항
-1.  **객관식:** 반드시 4개의 선택지를 포함한 객관식 문제여야 해.
-2.  **JSON 형식:** 결과는 반드시 아래와 같은 JSON 객체 형식으로만 반환해야 해. 다른 설명은 절대 추가하지 마.
-    \`\`\`json
-    {
-      "question": "새로운 문제 내용",
-      "options": ["선택지1", "선택지2", "선택지3", "선택지4"],
-      "answer": "정답 내용"
-    }
-    \`\`\`
-3.  **JSON 수식 처리:** JSON 문자열 내에서 LaTeX 수식을 사용할 때, 모든 백슬래시(\\)는 이중 백슬래시(\\\\)로 이스케이프 처리해야 해. (예: "\\\\sqrt{4}")
-
-이제, 새로운 유사 문제를 생성해줘.
-`;
+                [원본 문제]
+                문제: ${q.question}
+                선택지: ${q.options.join(', ')}
+                정답: ${q.answer}`;
                 
                 const similarQuestionJSON = await callGemini(prompt);
                 
@@ -683,10 +669,7 @@
                     const jsonMatch = cleanJsonString.match(/\{[\s\S]*\}/);
                     if (!jsonMatch) throw new Error("Valid JSON not found in response.");
                     
-                    let jsonString = jsonMatch[0];
-                    // Sanitize for invalid escape characters from LLM response
-                    jsonString = jsonString.replace(/\\(?!["\\/bfnrtu])/g, '\\\\');
-
+                    const jsonString = jsonMatch[0];
                     const similarQ = JSON.parse(jsonString);
 
                     noteHTML += `<div class="border-t border-dashed my-6"></div>`;
@@ -915,3 +898,4 @@
     </script>
 </body>
 </html>
+
