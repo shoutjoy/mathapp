@@ -1,0 +1,917 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 중학수학 입학 테스트</title>
+    <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+        }
+        .custom-btn {
+            transition: all 0.2s ease-in-out;
+        }
+        .custom-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        .custom-option {
+            transition: all 0.2s ease-in-out;
+            border: 2px solid transparent;
+        }
+        .custom-option:hover:not(:disabled) {
+            border-color: #3b82f6; /* blue-500 */
+            background-color: #eff6ff; /* blue-50 */
+        }
+        .custom-option.selected-correct {
+            border-color: #16a34a; /* green-600 */
+            background-color: #dcfce7; /* green-100 */
+            color: #15803d; /* green-700 */
+            font-weight: 700;
+        }
+        .custom-option.selected-incorrect {
+            border-color: #dc2626; /* red-600 */
+            background-color: #fee2e2; /* red-100 */
+            color: #b91c1c; /* red-800 */
+            font-weight: 700;
+        }
+        /* Custom scrollbar for modals */
+        .modal-content::-webkit-scrollbar {
+            width: 8px;
+        }
+        .modal-content::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        .modal-content::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 4px;
+        }
+        .modal-content::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+        /* Prose styles override */
+        .prose {
+            color: inherit;
+        }
+        .prose h1, .prose h2, .prose h3, .prose h4, .prose h5, .prose h6 {
+             color: inherit;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen">
+
+    <div id="app" class="container mx-auto p-4 max-w-4xl w-full">
+        <!-- 설정 화면 -->
+        <div id="setup-screen" class="bg-white p-8 rounded-2xl shadow-lg">
+            <h1 class="text-3xl font-bold text-center text-gray-800 mb-2">AI 중학수학 진단평가</h1>
+            <p class="text-center text-gray-500 mb-8">자신의 실력을 정확하게 진단하고 취약점을 분석해보세요.</p>
+
+            <div class="space-y-6">
+                <!-- 학기 선택 -->
+                <div>
+                    <label class="text-lg font-semibold text-gray-700 mb-2 block">1. 학기 선택</label>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <button id="semester-1" onclick="selectSemester('3-1')" class="semester-btn custom-btn p-4 text-lg font-medium rounded-lg bg-white border-2 border-gray-200 text-gray-700 hover:bg-blue-50 hover:border-blue-500">3학년 1학기</button>
+                        <button id="semester-2" onclick="selectSemester('3-2')" class="semester-btn custom-btn p-4 text-lg font-medium rounded-lg bg-white border-2 border-gray-200 text-gray-700 hover:bg-blue-50 hover:border-blue-500">3학년 2학기</button>
+                    </div>
+                </div>
+
+                <!-- 단원 선택 -->
+                <div id="unit-selection" class="hidden">
+                    <label class="text-lg font-semibold text-gray-700 mb-2 block">2. 단원 선택</label>
+                    <select id="unit-select" class="w-full p-3 border border-gray-300 rounded-lg text-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"></select>
+                </div>
+
+                <!-- 문항 개수 선택 -->
+                <div id="count-selection" class="hidden">
+                    <label for="question-count" class="text-lg font-semibold text-gray-700 mb-2 block">3. 문항 개수</label>
+                    <input type="number" id="question-count" value="5" min="1" max="10" class="w-full p-3 border border-gray-300 rounded-lg text-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                
+                <!-- 난이도 선택 -->
+                <div id="difficulty-selection" class="hidden">
+                    <label for="difficulty-select" class="text-lg font-semibold text-gray-700 mb-2 block">4. 난이도</label>
+                    <select id="difficulty-select" class="w-full p-3 border border-gray-300 rounded-lg text-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        <option value="">난이도를 선택하세요</option>
+                        <option value="기본">기본</option>
+                        <option value="응용">응용</option>
+                        <option value="고난도">고난도</option>
+                    </select>
+                </div>
+            </div>
+
+            <div id="generation-status" class="mt-4 text-center text-gray-600 font-medium"></div>
+
+            <div class="mt-8 text-center space-y-4">
+                <button id="generate-questions-btn" onclick="generateQuestions()" class="w-full md:w-1/2 bg-green-600 text-white font-bold py-3 px-6 rounded-lg text-lg custom-btn disabled:bg-gray-400 disabled:cursor-not-allowed" disabled>문제 생성하기</button>
+                <button id="start-quiz-btn" onclick="startQuiz()" class="w-full md:w-1/2 bg-blue-600 text-white font-bold py-3 px-6 rounded-lg text-lg custom-btn disabled:bg-gray-400 disabled:cursor-not-allowed" disabled>퀴즈 시작하기</button>
+            </div>
+        </div>
+
+        <!-- 퀴즈 화면 -->
+        <div id="quiz-screen" class="hidden bg-white p-8 rounded-2xl shadow-lg">
+            <div class="flex justify-between items-center mb-4">
+                <h2 id="quiz-header" class="text-2xl font-bold text-gray-800"></h2>
+                <div id="progress-indicator" class="text-lg font-semibold text-gray-600"></div>
+            </div>
+            <div class="bg-gray-50 p-6 rounded-lg mb-6 min-h-[150px] flex items-center justify-center">
+                <p id="question-text" class="text-xl text-gray-900 leading-relaxed"></p>
+            </div>
+            <div id="options-container" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+            <div id="feedback-message" class="mt-4 text-center text-xl font-bold"></div>
+            <div class="flex flex-col md:flex-row justify-between items-center mt-8 space-y-4 md:space-y-0">
+                <div class="flex space-x-2">
+                     <button onclick="showAIExplanation()" class="bg-teal-500 text-white font-semibold py-2 px-4 rounded-lg custom-btn">AI 문제풀이</button>
+                     <button onclick="showConcept()" class="bg-indigo-500 text-white font-semibold py-2 px-4 rounded-lg custom-btn">AI 개념보기</button>
+                </div>
+                <div class="flex space-x-2">
+                    <button onclick="goToFirst()" class="bg-gray-200 text-gray-700 font-semibold py-2 px-4 rounded-lg custom-btn">처음으로</button>
+                    <button id="prev-btn" onclick="prevQuestion()" class="bg-gray-200 text-gray-700 font-semibold py-2 px-4 rounded-lg custom-btn">이전문제</button>
+                    <button id="next-btn" onclick="nextQuestion()" class="bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg custom-btn">다음문제</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 결과 화면 -->
+        <div id="results-screen" class="hidden bg-white p-8 rounded-2xl shadow-lg text-center">
+            <h2 class="text-3xl font-bold text-gray-800 mb-4">채점 결과</h2>
+            <p id="score-text" class="text-5xl font-bold text-blue-600 mb-6"></p>
+            <div id="analysis-container" class="bg-gray-50 p-6 rounded-lg mb-6 text-left">
+                <div class="flex justify-between items-center mb-3">
+                    <h3 class="text-xl font-bold text-gray-800">AI 학습결과 분석</h3>
+                    <button onclick="viewAnalysisAsHTML('ai-analysis', 'AI 학습결과 분석')" class="bg-green-600 text-white font-semibold py-1 px-3 rounded-lg custom-btn text-sm">HTML로 보기</button>
+                </div>
+                <div id="ai-analysis" class="text-gray-700 space-y-2 leading-relaxed prose max-w-none"></div>
+                 <div class="mt-4 text-center">
+                    <button id="analyze-btn" onclick="triggerAnalysis()" class="bg-purple-600 text-white font-bold py-2 px-5 rounded-lg text-md custom-btn">AI 학습결과 분석보기</button>
+                </div>
+            </div>
+             <div id="weakness-container" class="bg-red-50 p-6 rounded-lg mb-8 text-left">
+                <div class="flex justify-between items-center mb-3">
+                    <h3 class="text-xl font-bold text-red-800">취약점 분석</h3>
+                    <button onclick="viewAnalysisAsHTML('ai-weakness', '취약점 분석')" class="bg-green-600 text-white font-semibold py-1 px-3 rounded-lg custom-btn text-sm">HTML로 보기</button>
+                </div>
+                <div id="ai-weakness" class="text-red-700 space-y-2 leading-relaxed prose max-w-none"></div>
+            </div>
+            <div class="flex flex-col md:flex-row justify-center space-y-3 md:space-y-0 md:space-x-4">
+                <button onclick="restartQuiz()" class="bg-blue-600 text-white font-bold py-3 px-6 rounded-lg text-lg custom-btn">새로 시작하기</button>
+                <button onclick="repeatSameType()" class="bg-green-600 text-white font-bold py-3 px-6 rounded-lg text-lg custom-btn">같은 유형 반복</button>
+                <button onclick="createMistakeNote()" class="bg-orange-500 text-white font-bold py-3 px-6 rounded-lg text-lg custom-btn">오답노트 만들기</button>
+                <button onclick="downloadResults()" class="bg-gray-700 text-white font-bold py-3 px-6 rounded-lg text-lg custom-btn">결과 저장하기 (txt)</button>
+            </div>
+        </div>
+        
+        <!-- 오답노트 화면 -->
+        <div id="mistake-note-screen" class="hidden bg-white p-8 rounded-2xl shadow-lg">
+            <h2 class="text-3xl font-bold text-center text-gray-800 mb-8">AI 오답노트</h2>
+            <div id="mistake-note-content" class="space-y-10"></div>
+            <div class="mt-8 text-center">
+                <button onclick="restartQuiz()" class="bg-blue-600 text-white font-bold py-3 px-6 rounded-lg text-lg custom-btn">메인으로 돌아가기</button>
+            </div>
+        </div>
+
+    </div>
+    
+    <!-- AI 설명 및 개념 보기 모달 -->
+    <div id="ai-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+            <div class="flex justify-between items-center p-5 border-b">
+                <h3 id="modal-title" class="text-2xl font-bold text-gray-800">AI 도우미</h3>
+                <button onclick="closeModal()" class="text-gray-500 hover:text-gray-800 text-3xl">&times;</button>
+            </div>
+            <div id="modal-content" class="p-6 text-lg text-gray-700 leading-relaxed overflow-y-auto modal-content">
+                <div id="modal-loader" class="flex justify-center items-center py-10">
+                    <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                </div>
+                <div id="modal-text" class="prose max-w-none"></div>
+            </div>
+            <div class="p-4 bg-gray-50 border-t rounded-b-2xl flex flex-wrap justify-center gap-3">
+                 <button onclick="viewModalContentAsHTML()" class="w-full sm:w-auto flex-grow bg-green-600 text-white font-bold py-3 px-6 rounded-lg custom-btn">HTML로 보기</button>
+                 <button onclick="downloadModalContent()" id="download-modal-btn" class="w-full sm:w-auto flex-grow bg-gray-600 text-white font-bold py-3 px-6 rounded-lg custom-btn">내용 저장하기 (txt)</button>
+                 <button onclick="closeModal()" class="w-full sm:w-auto flex-grow bg-blue-600 text-white font-bold py-3 px-6 rounded-lg custom-btn">닫기</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 분석 로딩 모달 -->
+    <div id="loading-modal" class="hidden fixed inset-0 bg-black bg-opacity-60 flex flex-col items-center justify-center p-4 z-50 text-white">
+        <div class="animate-spin rounded-full h-16 w-16 border-b-4 border-white mb-4"></div>
+        <h3 class="text-2xl font-bold">AI가 여러분의 학습을 분석중입니다.</h3>
+        <p class="text-lg mt-2">잠시만 기다려주세요...</p>
+    </div>
+
+
+    <script>
+        const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=`;
+        
+        const state = {
+            currentScreen: 'setup',
+            settings: {
+                semester: null,
+                unit: null,
+                count: 5,
+                difficulty: null,
+            },
+            quiz: [],
+            currentQuestionIndex: 0,
+            userAnswers: [],
+        };
+
+        const unitsBySemester = {
+            '3-1': ['제곱근과 실수', '다항식의 곱셈과 인수분해', '이차방정식', '이차함수'],
+            '3-2': ['삼각비', '원의 성질', '통계']
+        };
+
+        // DOM Elements
+        const screens = {
+            setup: document.getElementById('setup-screen'),
+            quiz: document.getElementById('quiz-screen'),
+            results: document.getElementById('results-screen'),
+            mistakeNote: document.getElementById('mistake-note-screen'),
+        };
+        const semesterBtns = document.querySelectorAll('.semester-btn');
+        const unitSelect = document.getElementById('unit-select');
+        const questionCountInput = document.getElementById('question-count');
+        const difficultySelect = document.getElementById('difficulty-select');
+        const startQuizBtn = document.getElementById('start-quiz-btn');
+        const generateQuestionsBtn = document.getElementById('generate-questions-btn');
+        const generationStatus = document.getElementById('generation-status');
+       
+        // Functions
+        function switchScreen(screenName) {
+            Object.values(screens).forEach(screen => screen.classList.add('hidden'));
+            screens[screenName].classList.remove('hidden');
+            state.currentScreen = screenName;
+        }
+
+        function selectSemester(semester) {
+            state.settings.semester = semester;
+            semesterBtns.forEach(btn => {
+                btn.classList.remove('bg-blue-600', 'text-white', 'border-blue-600');
+                btn.classList.add('bg-white', 'border-gray-200', 'text-gray-700');
+            });
+            const selectedBtn = document.getElementById(semester === '3-1' ? 'semester-1' : 'semester-2');
+            selectedBtn.classList.add('bg-blue-600', 'text-white', 'border-blue-600');
+            
+            populateUnits();
+            document.getElementById('unit-selection').classList.remove('hidden');
+            startQuizBtn.disabled = true;
+            generateQuestionsBtn.disabled = true;
+        }
+
+        function populateUnits() {
+            const units = unitsBySemester[state.settings.semester];
+            unitSelect.innerHTML = '<option value="">단원을 선택하세요</option>';
+            units.forEach(unit => {
+                const option = document.createElement('option');
+                option.value = unit;
+                option.textContent = unit;
+                unitSelect.appendChild(option);
+            });
+            unitSelect.onchange = () => {
+                if (unitSelect.value) {
+                    state.settings.unit = unitSelect.value;
+                    document.getElementById('count-selection').classList.remove('hidden');
+                    document.getElementById('difficulty-selection').classList.remove('hidden');
+                } else {
+                    state.settings.unit = null;
+                    generateQuestionsBtn.disabled = true;
+                    document.getElementById('difficulty-selection').classList.add('hidden');
+                }
+                startQuizBtn.disabled = true;
+                difficultySelect.value = '';
+            };
+        }
+
+        difficultySelect.onchange = () => {
+            if (difficultySelect.value) {
+                state.settings.difficulty = difficultySelect.value;
+                generateQuestionsBtn.disabled = false;
+            } else {
+                state.settings.difficulty = null;
+                generateQuestionsBtn.disabled = true;
+            }
+            startQuizBtn.disabled = true;
+        };
+
+        async function generateQuestions() {
+            generateQuestionsBtn.disabled = true;
+            startQuizBtn.disabled = true;
+            generateQuestionsBtn.textContent = '생성 중...';
+            generationStatus.textContent = 'AI가 문제를 생성하고 있습니다. 잠시만 기다려 주세요...';
+
+            const { semester, unit, count, difficulty } = state.settings;
+            const prompt = `
+                당신은 중학교 3학년 수학 교사입니다. 다음 주제와 난이도에 대해 중3 학생 수준에 맞는 객관식 문제 ${count}개를 생성해주세요.
+                주제: ${unit} (중학교 3학년 ${semester} 과정)
+                난이도: ${difficulty}
+
+                각 문제는 다음 요구사항을 반드시 따라야 합니다:
+                1. 4개의 선택지를 포함해야 합니다.
+                2. 수학 수식은 LaTeX 문법을 사용해야 합니다.
+                3. 문제 유형은 '개념', '계산', '응용', '고난도' 중 하나로 분류해주세요. (선택된 난이도에 맞게)
+
+                결과는 반드시 JSON 배열 형식이어야 하며, 다른 어떤 텍스트도 포함해서는 안 됩니다.
+                JSON 배열의 각 객체는 다음 구조를 가져야 합니다:
+                {"question": "문제 내용", "options": ["선택지1", "선택지2", "선택지3", "선택지4"], "answer": "정답 내용", "concept": "핵심 개념", "type": "문제 유형"}
+                
+                중요: JSON 내부의 LaTeX 수식에 사용되는 모든 백슬래시(\\)는 이중 백슬래시(\\\\\)로 이스케이프 처리해야 합니다. 예: "\\\\sqrt{4}"
+
+                예시:
+                [
+                    {"question": "다음 중 \\\\sqrt{16}의 양의 제곱근은 무엇인가요?", "options": ["4", "-4", "\\\\pm4", "2"], "answer": "4", "concept": "제곱근의 이해", "type": "개념"},
+                    {"question": "$(x+2)(x-3)$를 전개하면 무엇이 되나요?", "options": ["$x^2-x-6$", "$x^2+x-6$", "$x^2-5x-6$", "$x^2+5x-6$"], "answer": "$x^2-x-6$", "concept": "다항식의 곱셈", "type": "계산"}
+                ]
+            `;
+
+            try {
+                const response = await callGemini(prompt);
+                let cleanJsonString = response;
+                if (cleanJsonString.startsWith('```json')) {
+                    cleanJsonString = cleanJsonString.substring(7);
+                    if (cleanJsonString.endsWith('```')) {
+                        cleanJsonString = cleanJsonString.slice(0, -3);
+                    }
+                }
+                const jsonMatch = cleanJsonString.match(/\[[\s\S]*\]/);
+                if (!jsonMatch) throw new Error("Valid JSON array not found in response.");
+                
+                state.quiz = JSON.parse(jsonMatch[0]);
+                generationStatus.textContent = `${state.quiz.length}개의 문항이 성공적으로 생성되었습니다.`;
+                startQuizBtn.disabled = false;
+            } catch (e) {
+                console.error("Failed to generate questions:", e, response);
+                generationStatus.textContent = '문제 생성에 실패했습니다. 다시 시도해주세요.';
+            } finally {
+                generateQuestionsBtn.disabled = false;
+                generateQuestionsBtn.textContent = '문제 다시 생성하기';
+            }
+        }
+
+        function startQuiz() {
+            if (state.quiz.length === 0) {
+                alert('생성된 문제가 없습니다. 먼저 문제를 생성해주세요.');
+                return;
+            }
+            state.userAnswers = new Array(state.quiz.length).fill(null);
+            state.currentQuestionIndex = 0;
+            renderQuestion();
+            switchScreen('quiz');
+        }
+
+
+        function renderQuestion() {
+            const question = state.quiz[state.currentQuestionIndex];
+            document.getElementById('quiz-header').textContent = `${state.settings.unit}`;
+            document.getElementById('progress-indicator').textContent = `문제 ${state.currentQuestionIndex + 1} / ${state.quiz.length}`;
+            document.getElementById('question-text').innerHTML = formatMath(question.question);
+            
+            const optionsContainer = document.getElementById('options-container');
+            const feedbackEl = document.getElementById('feedback-message');
+            optionsContainer.innerHTML = '';
+            feedbackEl.innerHTML = '';
+
+            const hasAnswered = state.userAnswers[state.currentQuestionIndex] !== null;
+
+            question.options.forEach((option, index) => {
+                const optionBtn = document.createElement('button');
+                optionBtn.innerHTML = formatMath(option);
+                optionBtn.classList.add('custom-option', 'p-4', 'rounded-lg', 'text-left', 'text-lg', 'font-medium', 'text-gray-800', 'bg-gray-100');
+                optionBtn.onclick = () => selectOption(index);
+                optionBtn.disabled = hasAnswered;
+                optionsContainer.appendChild(optionBtn);
+            });
+
+            if (hasAnswered) {
+                showFeedback();
+            }
+
+            document.getElementById('prev-btn').disabled = state.currentQuestionIndex === 0;
+            const nextBtn = document.getElementById('next-btn');
+            if (state.currentQuestionIndex === state.quiz.length - 1) {
+                nextBtn.textContent = '채점하기';
+                nextBtn.onclick = showResults;
+                nextBtn.classList.remove('bg-blue-600');
+                nextBtn.classList.add('bg-green-600');
+            } else {
+                nextBtn.textContent = '다음문제';
+                nextBtn.onclick = nextQuestion;
+                nextBtn.classList.remove('bg-green-600');
+                nextBtn.classList.add('bg-blue-600');
+            }
+            
+            renderMathInElement(document.getElementById('quiz-screen'));
+        }
+
+        function selectOption(optionIndex) {
+            if (state.userAnswers[state.currentQuestionIndex] !== null) return;
+            state.userAnswers[state.currentQuestionIndex] = optionIndex;
+            showFeedback();
+        }
+
+        function showFeedback() {
+            const question = state.quiz[state.currentQuestionIndex];
+            const userAnswerIndex = state.userAnswers[state.currentQuestionIndex];
+            const isCorrect = question.options[userAnswerIndex] === question.answer;
+
+            const feedbackEl = document.getElementById('feedback-message');
+            if (isCorrect) {
+                feedbackEl.textContent = '정답입니다!';
+                feedbackEl.className = 'mt-4 text-center text-xl font-bold text-green-600';
+            } else {
+                feedbackEl.textContent = '오답입니다.';
+                feedbackEl.className = 'mt-4 text-center text-xl font-bold text-red-600';
+            }
+
+            const optionBtns = document.getElementById('options-container').children;
+            const correctIndex = question.options.findIndex(opt => opt === question.answer);
+
+            Array.from(optionBtns).forEach((btn, index) => {
+                btn.disabled = true;
+                if (index === correctIndex) {
+                    btn.classList.add('selected-correct');
+                } else if (index === userAnswerIndex) {
+                    btn.classList.add('selected-incorrect');
+                }
+            });
+        }
+
+
+        function nextQuestion() {
+            if (state.currentQuestionIndex < state.quiz.length - 1) {
+                state.currentQuestionIndex++;
+                renderQuestion();
+            }
+        }
+        
+        function prevQuestion() {
+            if (state.currentQuestionIndex > 0) {
+                state.currentQuestionIndex--;
+                renderQuestion();
+            }
+        }
+        
+        function goToFirst() {
+            state.currentQuestionIndex = 0;
+            renderQuestion();
+        }
+
+        function showResults() {
+             if (state.userAnswers.includes(null)) {
+                return;
+            }
+            let score = 0;
+            state.quiz.forEach((q, index) => {
+                if (q.options[state.userAnswers[index]] === q.answer) {
+                    score++;
+                }
+            });
+            const total = state.quiz.length;
+            const percentage = Math.round((score / total) * 100);
+
+            document.getElementById('score-text').textContent = `${percentage}점 (${score}/${total})`;
+            
+            document.getElementById('ai-analysis').innerHTML = '';
+            document.getElementById('ai-weakness').innerHTML = '';
+            const analyzeBtn = document.getElementById('analyze-btn');
+            analyzeBtn.disabled = false;
+            analyzeBtn.textContent = 'AI 학습결과 분석보기';
+
+            switchScreen('results');
+        }
+
+        // AI Feature Functions
+        async function callGemini(prompt) {
+             const apiKey = ""; // This will be handled by the environment.
+             const FULL_API_URL = API_URL + apiKey;
+
+             const payload = {
+                contents: [{ parts: [{ text: prompt }] }],
+            };
+            try {
+                const response = await fetch(FULL_API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (!response.ok) {
+                    throw new Error(`API call failed with status: ${response.status}`);
+                }
+                const result = await response.json();
+                return result.candidates[0].content.parts[0].text;
+            } catch (error) {
+                console.error("Gemini API Error:", error);
+                return "AI 분석 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.";
+            }
+        }
+
+        function showModal(title) {
+            document.getElementById('modal-title').textContent = title;
+            document.getElementById('modal-text').innerHTML = '';
+            document.getElementById('modal-loader').style.display = 'flex';
+            document.getElementById('ai-modal').classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('ai-modal').classList.add('hidden');
+        }
+
+        function displayModalContent(htmlContent) {
+            document.getElementById('modal-loader').style.display = 'none';
+            document.getElementById('modal-text').innerHTML = parseMarkdown(formatMath(htmlContent));
+            renderMathInElement(document.getElementById('modal-text'));
+        }
+
+        async function showAIExplanation() {
+            const question = state.quiz[state.currentQuestionIndex];
+
+            const prompt = `
+너는 중학교 3학년 학생을 가르치는 친절하고 유능한 수학 선생님이야.
+학생이 문제의 정답은 알고 있지만, 왜 그게 정답인지 이해하지 못하는 상황이야.
+아래에 있는 문제 정보(문제, 선택지, 정답)를 보고, 학생의 눈높이에 맞춰서 상세한 해설을 작성해줘.
+
+---
+### 문제 정보
+* **문제:** ${question.question}
+* **선택지:** ${question.options.join(', ')}
+* **정답:** ${question.answer}
+---
+
+### 해설 작성 요구사항
+1.  **단계별 풀이 과정:** 정답에 도달하는 과정을 처음부터 끝까지, 단계별로 나누어 자세하게 설명해줘. 각 단계마다 필요한 수학 개념이나 공식을 함께 언급해줘.
+2.  **정답인 이유 설명:** 왜 '${question.answer}'이(가) 정답이 되는지 명확하게 설명해줘.
+3.  **오답 분석 (선택 사항):** 가능하다면, 다른 선택지들이 왜 오답인지 간략하게 짚어주면 더욱 좋아.
+4.  **최종 정리:** 전체 풀이 내용을 마지막에 한두 문장으로 요약하며 마무리해줘.
+5.  **형식:** 설명 전체를 마크다운(#, ##, *)을 사용하여 학생들이 보기 쉽게 구조화해줘.
+
+자, 이제 이 문제에 대한 명쾌한 해설을 시작해줘!
+`;
+
+            showModal('AI 문제풀이');
+            const explanation = await callGemini(prompt);
+            displayModalContent(explanation);
+        }
+
+        async function showConcept() {
+            const question = state.quiz[state.currentQuestionIndex];
+
+            const prompt = `
+너는 중학교 3학년 학생들에게 수학 개념을 기가 막히게 설명해주는 최고의 '개념 정리 마스터'야.
+복잡한 내용도 학생들의 머리에 쏙쏙 들어오도록, 비유를 사용해서 쉽고 재미있게 설명해줘.
+아래 '설명할 개념'에 대해, '설명 가이드라인'에 맞춰서 완벽한 개념 설명서를 작성해줘.
+
+---
+### 설명할 개념
+* **개념 이름:** ${question.concept}
+---
+
+### 설명 가이드라인
+1.  **핵심 비유 (What?):** '${question.concept}' 개념의 핵심을 한 문장으로 정의하고, 학생이 직관적으로 이해할 수 있는 쉬운 비유를 들어 설명해줘. (예: "피타고라스 정리는 직각삼각형의 세 변이 숨겨진 규칙을 찾는 암호해독표 같은 거야!")
+2.  **중요성 (Why?):** 이 개념을 왜 배워야 하는지, 수학 세계에서 어떤 강력한 무기가 되는지 설명해줘.
+3.  **활용 예시 (How?):** 이 개념이 실제로 어떻게 사용되는지 알 수 있도록, 대표적인 수학 문제 예시를 1~2개 만들어서 풀이 과정과 함께 보여줘.
+4.  **꿀팁 또는 주의할 점:** 학생들이 이 개념을 사용할 때 자주 하는 실수나, 꼭 기억해야 할 핵심 꿀팁을 한 가지 짚어줘.
+5.  **형식:** 전체 설명은 학생들이 보기 편하도록 마크다운(#, ##, *)을 사용해서 깔끔하게 구조화해줘.
+
+자, 이제 '${question.concept}' 개념에 대한 명쾌한 설명을 부탁해!
+`;
+
+            showModal('AI 개념보기');
+            const explanation = await callGemini(prompt);
+            displayModalContent(explanation);
+        }
+
+        async function triggerAnalysis() {
+            const btn = document.getElementById('analyze-btn');
+            btn.disabled = true;
+            
+            const loadingModal = document.getElementById('loading-modal');
+            loadingModal.classList.remove('hidden');
+            
+            await analyzePerformance();
+
+            loadingModal.classList.add('hidden');
+            btn.textContent = '분석 완료';
+        }
+
+        async function analyzePerformance() {
+            const results = state.quiz.map((q, i) => ({
+                question: q.question,
+                myAnswer: q.options[state.userAnswers[i]],
+                correctAnswer: q.answer,
+                isCorrect: q.options[state.userAnswers[i]] === q.answer,
+                type: q.type,
+                concept: q.concept,
+            }));
+            
+            const incorrectQuestions = results.filter(r => !r.isCorrect);
+
+            const analysisPrompt = `다음은 한 중학교 3학년 학생의 수학 퀴즈 결과야. 이 결과를 바탕으로 학생의 문제풀이 성향을 2-3문장으로 분석해줘. 예를 들어, 계산 실수가 잦은지, 개념 이해가 부족한지, 특정 유형에 약한지 등을 언급해줘. 결과는 마크다운 형식으로, #, ##, *, --- 와 같은 문법을 사용하여 명확하게 구조화해줘.
+            
+            [퀴즈 결과]
+            ${JSON.stringify(results, null, 2)}`;
+            
+            const weaknessPrompt = `다음은 학생이 틀린 수학 문제들이야. 각 문제 유형별로 어떤 점이 부족한지 구체적으로 설명해주고, 어떻게 보완하면 좋을지 조언해줘. 만약 틀린 문제가 없다면 "완벽해요! 모든 문제를 맞혔습니다." 라고 칭찬해줘. 결과는 마크다운 형식으로, #, ##, *, --- 와 같은 문법을 사용하여 명확하게 구조화해줘.
+
+            [틀린 문제 목록]
+            ${JSON.stringify(incorrectQuestions, null, 2)}`;
+            
+            const analysisText = await callGemini(analysisPrompt);
+            const weaknessText = await callGemini(weaknessPrompt);
+            
+            document.getElementById('ai-analysis').innerHTML = parseMarkdown(formatMath(analysisText));
+            document.getElementById('ai-weakness').innerHTML = parseMarkdown(formatMath(weaknessText));
+            renderMathInElement(document.getElementById('results-screen'));
+        }
+        
+        async function createMistakeNote() {
+            switchScreen('mistakeNote');
+            const contentDiv = document.getElementById('mistake-note-content');
+            contentDiv.innerHTML = '<div class="flex justify-center items-center py-10"><div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div><p class="ml-4 text-lg">AI가 유사 문항을 생성 중입니다...</p></div>';
+
+            const incorrectQuestions = state.quiz.filter((q, i) => q.options[state.userAnswers[i]] !== q.answer);
+
+            if (incorrectQuestions.length === 0) {
+                 contentDiv.innerHTML = '<p class="text-center text-xl text-green-600 font-semibold">틀린 문제가 없습니다! 오답노트를 만들 필요가 없어요. 훌륭해요!</p>';
+                 return;
+            }
+
+            let noteHTML = '';
+            for (const q of incorrectQuestions) {
+                const prompt = `
+너는 중학교 3학년 수학 문제 출제 전문가야.
+아래 '원본 문제'와 동일한 개념과 유형을 사용하되, 숫자나 상황을 바꿔서 새로운 유사 문제 1개를 만들어줘.
+
+---
+### 원본 문제 정보
+* **문제:** ${q.question}
+* **핵심 개념:** ${q.concept}
+* **유형:** ${q.type}
+---
+
+### 생성할 문제 요구사항
+1.  **객관식:** 반드시 4개의 선택지를 포함한 객관식 문제여야 해.
+2.  **JSON 형식:** 결과는 반드시 아래와 같은 JSON 객체 형식으로만 반환해야 해. 다른 설명은 절대 추가하지 마.
+    \`\`\`json
+    {
+      "question": "새로운 문제 내용",
+      "options": ["선택지1", "선택지2", "선택지3", "선택지4"],
+      "answer": "정답 내용"
+    }
+    \`\`\`
+3.  **JSON 수식 처리:** JSON 문자열 내에서 LaTeX 수식을 사용할 때, 모든 백슬래시(\\)는 이중 백슬래시(\\\\)로 이스케이프 처리해야 해. (예: "\\\\sqrt{4}")
+
+이제, 새로운 유사 문제를 생성해줘.
+`;
+                
+                const similarQuestionJSON = await callGemini(prompt);
+                
+                noteHTML += `<div class="bg-gray-50 p-6 rounded-xl shadow-sm">`;
+                noteHTML += `<h4 class="text-lg font-bold text-red-600 mb-3">[틀린 문제]</h4>`;
+                noteHTML += `<p class="text-gray-800 text-lg mb-4">${formatMath(q.question)}</p>`;
+                
+                try {
+                    let cleanJsonString = similarQuestionJSON;
+                    if (cleanJsonString.startsWith('```json')) {
+                        cleanJsonString = cleanJsonString.substring(7);
+                        if (cleanJsonString.endsWith('```')) {
+                            cleanJsonString = cleanJsonString.slice(0, -3);
+                        }
+                    }
+
+                    const jsonMatch = cleanJsonString.match(/\{[\s\S]*\}/);
+                    if (!jsonMatch) throw new Error("Valid JSON not found in response.");
+                    
+                    let jsonString = jsonMatch[0];
+                    // Sanitize for invalid escape characters from LLM response
+                    jsonString = jsonString.replace(/\\(?!["\\/bfnrtu])/g, '\\\\');
+
+                    const similarQ = JSON.parse(jsonString);
+
+                    noteHTML += `<div class="border-t border-dashed my-6"></div>`;
+                    noteHTML += `<h4 class="text-lg font-bold text-blue-600 mb-3">[AI 생성 유사 문제]</h4>`;
+                    noteHTML += `<p class="text-gray-800 text-lg mb-4">${formatMath(similarQ.question)}</p>`;
+                    noteHTML += `<div class="grid grid-cols-1 md:grid-cols-2 gap-3">`;
+                    similarQ.options.forEach(opt => {
+                        noteHTML += `<div class="p-3 bg-white rounded-md border">${formatMath(opt)}</div>`;
+                    });
+                    noteHTML += `</div>`;
+                    noteHTML += `<p class="mt-4 font-semibold text-green-700">정답: ${formatMath(similarQ.answer)}</p>`;
+                } catch (e) {
+                    console.error("Failed to parse similar question JSON:", e, similarQuestionJSON);
+                    noteHTML += `<p class="text-red-500">유사 문항 생성에 실패했습니다. AI 응답을 확인해주세요.</p>`;
+                }
+                
+                noteHTML += `</div>`;
+            }
+            contentDiv.innerHTML = noteHTML;
+            renderMathInElement(contentDiv);
+        }
+
+        // Utility functions
+        function restartQuiz() {
+            Object.assign(state, {
+                currentScreen: 'setup',
+                settings: { semester: null, unit: null, count: 5, difficulty: null },
+                quiz: [],
+                currentQuestionIndex: 0,
+                userAnswers: [],
+            });
+            semesterBtns.forEach(btn => {
+                btn.classList.remove('bg-blue-600', 'text-white', 'border-blue-600');
+            });
+            document.getElementById('unit-selection').classList.add('hidden');
+            document.getElementById('count-selection').classList.add('hidden');
+            document.getElementById('difficulty-selection').classList.add('hidden');
+            startQuizBtn.disabled = true;
+            generateQuestionsBtn.disabled = true;
+            generateQuestionsBtn.textContent = '문제 생성하기';
+            generationStatus.textContent = '';
+            unitSelect.innerHTML = '';
+            questionCountInput.value = 5;
+            difficultySelect.value = '';
+            switchScreen('setup');
+        }
+
+        function repeatSameType() {
+            generateQuestions().then(() => {
+                if(state.quiz.length > 0) {
+                    startQuiz();
+                }
+            });
+        }
+        
+        function downloadFile(filename, text) {
+            const element = document.createElement('a');
+            element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text));
+            element.setAttribute('download', filename);
+            element.style.display = 'none';
+            document.body.appendChild(element);
+            element.click();
+            document.body.removeChild(element);
+        }
+
+        function downloadResults() {
+            const score = document.getElementById('score-text').innerText;
+            const analysis = document.getElementById('ai-analysis').innerText;
+            const weakness = document.getElementById('ai-weakness').innerText;
+
+            let content = `AI 중학수학 진단평가 결과\n\n`;
+            content += `==============================\n[ 채점 결과 ]\n==============================\n${score}\n\n`;
+            if(analysis) content += `==============================\n[ AI 학습결과 분석 ]\n==============================\n${analysis}\n\n`;
+            if(weakness) content += `==============================\n[ 취약점 분석 ]\n==============================\n${weakness}\n`;
+            downloadFile('진단평가_결과.txt', content);
+        }
+        
+        function downloadModalContent() {
+            const title = document.getElementById('modal-title').innerText;
+            const content = document.getElementById('modal-text').innerText;
+            const filename = `${title.replace(/\s+/g, '_')}.txt`;
+            let fileContent = `[ ${title} ]\n\n${content}`;
+            downloadFile(filename, fileContent);
+        }
+        
+        function getHTMLPageTemplate(title, content) {
+            return `
+                <!DOCTYPE html>
+                <html lang="ko">
+                <head>
+                    <meta charset="UTF-8">
+                    <title>${title}</title>
+                    <script src="https://cdn.tailwindcss.com?plugins=typography"><\/script>
+                    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+                    <script>
+                      window.MathJax = {
+                        tex: { inlineMath: [['$', '$'], ['\\\\(', '\\\\)']], displayMath: [['$$', '$$'], ['\\\\[', '\\\\]']] },
+                        svg: { fontCache: 'global' },
+                        options: { scale: 125 }
+                      };
+                    <\/script>
+                    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" id="MathJax-script" async><\/script>
+                    <style> body { font-family: 'Noto Sans KR', sans-serif; padding: 2rem; } </style>
+                </head>
+                <body>
+                    <div class="prose prose-lg max-w-4xl mx-auto">${content}</div>
+                </body>
+                </html>
+            `;
+        }
+
+        function viewModalContentAsHTML() {
+            const title = document.getElementById('modal-title').innerText;
+            const content = document.getElementById('modal-text').innerHTML;
+            const html = getHTMLPageTemplate(title, content);
+            const newWindow = window.open('', '_blank');
+            newWindow.document.write(html);
+            newWindow.document.close();
+        }
+
+        function viewAnalysisAsHTML(contentId, title) {
+            const content = document.getElementById(contentId).innerHTML;
+            const html = getHTMLPageTemplate(title, content);
+            const newWindow = window.open('', '_blank');
+            newWindow.document.write(html);
+            newWindow.document.close();
+        }
+
+
+        // MathJax formatting
+        function formatMath(text) {
+            if (typeof text !== 'string') return '';
+            return text;
+        }
+
+        function parseMarkdown(text) {
+            if (typeof text !== 'string') return '';
+
+            let html = text
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+
+            // Headers
+            html = html.replace(/^# (.*$)/gim, '<h1>$1</h1>');
+            html = html.replace(/^## (.*$)/gim, '<h2>$1</h2>');
+            html = html.replace(/^### (.*$)/gim, '<h3>$1</h3>');
+            html = html.replace(/^#### (.*$)/gim, '<h4>$1</h4>');
+
+            // Blockquotes
+            html = html.replace(/^\> (.*$)/gim, '<blockquote>$1</blockquote>');
+
+            // Lists
+            html = html.replace(/^\* (.*$)/gim, '<ul><li>$1</li></ul>');
+            html = html.replace(/^\- (.*$)/gim, '<ul><li>$1</li></ul>');
+            html = html.replace(/^\d+\. (.*$)/gim, '<ol><li>$1</li></ol>');
+            // Consolidate list items
+            html = html.replace(/<\/ul>\s?<ul>/g, '');
+            html = html.replace(/<\/ol>\s?<ol>/g, '');
+
+            // HR
+            html = html.replace(/^(---|\*\*\*|___)\s*$/gim, '<hr>');
+
+            // Bold and Italic
+            html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
+            
+            // Code
+            html = html.replace(/`([^`]+)`/g, '<code class="px-1 bg-gray-200 text-sm rounded">$1</code>');
+
+            // Paragraphs (and cleanup)
+            html = html.replace(/\n/g, '<br>');
+            html = html.replace(/<br>(<(?:ul|ol|li|h[1-6]|hr|blockquote))/g, '$1');
+            html = html.replace(/(<\/(?:ul|ol|h[1-6]|hr|blockquote))><br>/g, '$1');
+             
+            return html;
+        }
+
+
+        function loadMathJax() {
+            if (window.MathJax) {
+                renderMathInElement(document.body);
+                return;
+            }
+            
+            window.MathJax = {
+                tex: {
+                  inlineMath: [['$', '$'], ['\\(', '\\)']],
+                  displayMath: [['$$', '$$'], ['\\[', '\\]']]
+                },
+                svg: {
+                  fontCache: 'global'
+                },
+                options: {
+                  scale: 125 // Set scale to 125% for bigger formulas
+                }
+            };
+
+            const script = document.createElement('script');
+            script.src = 'https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js';
+            script.id = 'MathJax-script';
+            script.async = true;
+            script.onload = () => {
+                window.MathJax.startup.ready = () => {
+                    window.MathJax.startup.defaultReady();
+                    renderMathInElement(document.body);
+                };
+            };
+            document.head.appendChild(script);
+        }
+
+        function renderMathInElement(element) {
+            if (window.MathJax && window.MathJax.typesetPromise) {
+                window.MathJax.typesetPromise([element]).catch((err) => console.log('MathJax error:', err));
+            }
+        }
+        
+        // Initial load
+        window.onload = () => {
+            loadMathJax();
+            switchScreen('setup');
+        };
+
+    </script>
+</body>
+</html>
